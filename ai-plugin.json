@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "GEX Logger",
+  "name_for_model": "gex_logger",
+  "description_for_human": "記錄 GEX 分析結果至 Google Sheets 並追蹤績效",
+  "description_for_model": "用於記錄 GEX 查詢結果與 AI 判斷至 Google Sheets",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://gex-logger.onrender.com/openapi.yaml"
+  },
+  "logo_url": "https://gex-logger.onrender.com/logo.png",
+  "contact_email": "you@example.com",
+  "legal_info_url": "https://yourdomain.com/legal"
+}

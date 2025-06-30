@@ -1,0 +1,39 @@
+openapi: 3.0.1
+info:
+  title: GEX Logger API
+  description: API to log GEX data to Google Sheets
+  version: "1.0"
+paths:
+  /api/gex-log:
+    post:
+      summary: Log GEX data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                symbol:
+                  type: string
+                call_wall:
+                  type: string
+                put_wall:
+                  type: string
+                gex_bias:
+                  type: string
+                ai_signal:
+                  type: string
+                confidence:
+                  type: string
+                user_action:
+                  type: string
+                actual_move:
+                  type: string
+                strategy_result:
+                  type: string
+      responses:
+        '200':
+          description: Data logged successfully
+        '500':
+          description: Failed to log data
