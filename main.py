@@ -2,33 +2,41 @@ from flask import Flask, request, jsonify
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
-import json
+import traceback
 
 app = Flask(__name__)
 
-# 掛載金鑰 JSON
-GOOGLE_CREDS_JSON = json.loads(os.getenv("GOOGLE_CREDS_JSON"))
+# Google Sheets 認證設定
+scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
 
-# 設定 Google Sheets 權限
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS_JSON, scope)
-client = gspread.authorize(creds)
+if not creds_json:
+    raise Exception("❌ 環境變數 GOOGLE_SHEETS_CREDENTIALS_JSON 未設置")
 
-# 打開試算表（記得換成你的網址 ID）
-SHEET_ID = "1wJc7sC3432j1iagC5qK4WP-zUBwiSjGJQ2piEZdyDAI"
-sheet = client.open_by_key(SHEET_ID).sheet1
+import json
+creds_dict = json.loads(creds_json)
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+client = gspread.authorize(credentials)
 
-@app.route("/", methods=["GET"])
-def index():
-    return "GEX Logger is running."
+# Google Sheets 文件 ID（你可以改成自己的）
+sheet_id = os.environ.get("GOOGLE_SHEET_ID")  # 請記得設定這個環境變數！
+sheet = client.open_by_key(sheet_id)
 
-@app.route("/api/gex-log", methods=["POST"])
-def gex_log():
+@app.route('/')
+def home():
+    return "✅ GEX Logger 正常運作中"
+
+@app.route('/api/gex-log', methods=['POST'])
+def log_gex_data():
     try:
         data = request.get_json()
-        print("✅ 收到資料:", data)
 
-        row = [
+        # 取得股票代碼對應的工作表（如不存在會報錯）
+        symbol = data["symbol"]
+        worksheet = sheet.worksheet(symbol)
+
+        # 將資料寫入新列
+        worksheet.append_row([
             data.get("symbol", ""),
             data.get("call_wall", ""),
             data.get("put_wall", ""),
@@ -37,16 +45,15 @@ def gex_log():
             data.get("confidence", ""),
             data.get("user_action", ""),
             data.get("actual_move", ""),
-            data.get("strategy_result", ""),
-        ]
+            data.get("strategy_result", "")
+        ])
 
-        print("📤 寫入資料:", row)
-        sheet.append_row(row, value_input_option="USER_ENTERED")
-        return jsonify({"status": "success"})
-
+        return jsonify({'status': 'success'})
+    
     except Exception as e:
-        print("❌ 錯誤發生：", str(e))
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print("❌ 發生錯誤：", str(e))
+        traceback.print_exc()
+        return jsonify({'status': 'error'})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+if __name__ == '__main__':
+    app.run(debug=False, host='0.0.0.0', port=10000)
