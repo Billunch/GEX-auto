@@ -13,4 +13,10 @@ def log_gex_data():
 
 @app.route('/')
 def home():
-    return "GEX Logger is running.", 200
+    return "✅ GEX Logger is running.", 200
+
+# 關鍵：綁定 0.0.0.0 與 PORT，供 Render 偵測
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
