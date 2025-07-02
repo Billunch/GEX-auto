@@ -1,66 +1,61 @@
+import os
+import json
 from flask import Flask, request, jsonify
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import os
-import traceback
-import json
 
 app = Flask(__name__)
 
-# Google Sheets 認證設定
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
+# 環境變數
+google_creds_json = os.environ.get("GOOGLE_CREDS_JSON")
+google_sheet_id = os.environ.get("GOOGLE_SHEET_ID")
 
-if not creds_json:
-    raise Exception("❌ 環境變數 GOOGLE_SHEETS_CREDENTIALS_JSON 未設置")
+if not google_creds_json or not google_sheet_id:
+    raise Exception("❌ GOOGLE_CREDENTIALS_JSON 或 GOOGLE_SHEET_ID 未正確設置")
 
-creds_dict = json.loads(creds_json)
-credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(credentials)
-
-# Google Sheets 文件 ID
-sheet_id = os.environ.get("GOOGLE_SHEET_ID")
-sheet = client.open_by_key(sheet_id)
-
-@app.route('/')
-def home():
-    return "✅ GEX Logger 正常運作中"
+# 驗證並連線 Google Sheet
+creds_dict = json.loads(google_creds_json)
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+client = gspread.authorize(creds)
+sheet = client.open_by_key(google_sheet_id)
 
 @app.route('/api/gex-log', methods=['POST'])
 def log_gex_data():
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "Missing JSON"}), 400
+
+    symbol = data.get("symbol")
+    if not symbol:
+        return jsonify({"status": "error", "message": "Missing symbol"}), 400
+
     try:
-        data = request.get_json()
-        symbol = data["symbol"]
-
-        # 嘗試取得工作表，若不存在則建立
-        try:
-            worksheet = sheet.worksheet(symbol)
-        except gspread.exceptions.WorksheetNotFound:
-            worksheet = sheet.add_worksheet(title=symbol, rows="1000", cols="20")
-            worksheet.append_row([
-                "symbol", "call_wall", "put_wall", "gex_bias", "ai_signal",
-                "confidence", "user_action", "actual_move", "strategy_result"
-            ])
-
-        # 寫入一列資料
+        worksheet = sheet.worksheet(symbol)
+    except gspread.exceptions.WorksheetNotFound:
+        worksheet = sheet.add_worksheet(title=symbol, rows="1000", cols="10")
         worksheet.append_row([
-            data.get("symbol", ""),
-            data.get("call_wall", ""),
-            data.get("put_wall", ""),
-            data.get("gex_bias", ""),
-            data.get("ai_signal", ""),
-            data.get("confidence", ""),
-            data.get("user_action", ""),
-            data.get("actual_move", ""),
-            data.get("strategy_result", "")
+            "symbol", "call_wall", "put_wall", "gex_bias", "ai_signal",
+            "confidence", "user_action", "actual_move", "strategy_result"
         ])
 
-        return jsonify({'status': 'success'})
+    worksheet.append_row([
+        data.get("symbol", ""),
+        data.get("call_wall", ""),
+        data.get("put_wall", ""),
+        data.get("gex_bias", ""),
+        data.get("ai_signal", ""),
+        data.get("confidence", ""),
+        data.get("user_action", ""),
+        data.get("actual_move", ""),
+        data.get("strategy_result", "")
+    ])
 
-    except Exception as e:
-        print("❌ 發生錯誤：", str(e))
-        traceback.print_exc()
-        return jsonify({'status': 'error', 'message': str(e)})
+    return jsonify({"status": "success"}), 200
+
+@app.route('/')
+def index():
+    return "✅ GEX Logger API Ready!"
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=10000)
