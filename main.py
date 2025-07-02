@@ -3,23 +3,23 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 import traceback
+import json
 
 app = Flask(__name__)
 
 # Google Sheets 認證設定
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
+creds_json = os.environ.get("GOOGLE_CREDS_JSON")  # ✅ 改成你 Render 上的環境變數名稱
 
 if not creds_json:
-    raise Exception("❌ 環境變數 GOOGLE_SHEETS_CREDENTIALS_JSON 未設置")
+    raise Exception("❌ 環境變數 GOOGLE_CREDS_JSON 未設置")
 
-import json
 creds_dict = json.loads(creds_json)
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(credentials)
 
 # Google Sheets 文件 ID（你可以改成自己的）
-sheet_id = os.environ.get("GOOGLE_SHEET_ID")  # 請記得設定這個環境變數！
+sheet_id = os.environ.get("GOOGLE_SHEET_ID")  # ✅ 你也要在 Render 設定這個值
 sheet = client.open_by_key(sheet_id)
 
 @app.route('/')
