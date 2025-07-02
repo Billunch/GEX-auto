@@ -9,17 +9,17 @@ app = Flask(__name__)
 
 # Google Sheets 認證設定
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds_json = os.environ.get("GOOGLE_CREDS_JSON")  # ✅ 改成你 Render 上的環境變數名稱
+creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
 
 if not creds_json:
-    raise Exception("❌ 環境變數 GOOGLE_CREDS_JSON 未設置")
+    raise Exception("❌ 環境變數 GOOGLE_SHEETS_CREDENTIALS_JSON 未設置")
 
 creds_dict = json.loads(creds_json)
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(credentials)
 
-# Google Sheets 文件 ID（你可以改成自己的）
-sheet_id = os.environ.get("GOOGLE_SHEET_ID")  # ✅ 你也要在 Render 設定這個值
+# Google Sheets 文件 ID
+sheet_id = os.environ.get("GOOGLE_SHEET_ID")
 sheet = client.open_by_key(sheet_id)
 
 @app.route('/')
@@ -30,12 +30,19 @@ def home():
 def log_gex_data():
     try:
         data = request.get_json()
-
-        # 取得股票代碼對應的工作表（如不存在會報錯）
         symbol = data["symbol"]
-        worksheet = sheet.worksheet(symbol)
 
-        # 將資料寫入新列
+        # 嘗試取得工作表，若不存在則建立
+        try:
+            worksheet = sheet.worksheet(symbol)
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = sheet.add_worksheet(title=symbol, rows="1000", cols="20")
+            worksheet.append_row([
+                "symbol", "call_wall", "put_wall", "gex_bias", "ai_signal",
+                "confidence", "user_action", "actual_move", "strategy_result"
+            ])
+
+        # 寫入一列資料
         worksheet.append_row([
             data.get("symbol", ""),
             data.get("call_wall", ""),
@@ -49,11 +56,11 @@ def log_gex_data():
         ])
 
         return jsonify({'status': 'success'})
-    
+
     except Exception as e:
         print("❌ 發生錯誤：", str(e))
         traceback.print_exc()
-        return jsonify({'status': 'error'})
+        return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=10000)
